@@ -19,6 +19,7 @@ from copy import deepcopy
 from quickdraw import Quickdraw
 from models import ConvBase
 
+# 70/15/15 split
 SPLITS = {
     'train': [
         'hedgehog',
@@ -230,7 +231,7 @@ def main(
     ]
     train_tasks = l2l.data.TaskDataset(train_dataset,
                                        task_transforms=train_transforms,
-                                       num_tasks=20000)
+                                       num_tasks=2000)
 
     print("before valid")
 
@@ -242,7 +243,7 @@ def main(
     ]
     valid_tasks = l2l.data.TaskDataset(valid_dataset,
                                        task_transforms=valid_transforms,
-                                       num_tasks=600)
+                                       num_tasks=60)
 
     print("before test")
 
@@ -254,7 +255,7 @@ def main(
     ]
     test_tasks = l2l.data.TaskDataset(test_dataset,
                                       task_transforms=test_transforms,
-                                      num_tasks=600)
+                                      num_tasks=60)
 
     print(len(test_tasks)) # 600 tasks
     print(len(test_tasks[0])) # each task has 2 tensors, input X and output Y
