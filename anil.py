@@ -17,7 +17,9 @@ from learn2learn.data.transforms import FusedNWaysKShots, LoadData, RemapLabels,
 from statistics import mean
 from copy import deepcopy
 from quickdraw import Quickdraw
-from models import ConvBase
+from models.cnn import ConvBase
+from models.gru import GRU
+from models.resnet import ResFeatureExtractor
 
 # 70/15/15 split
 SPLITS = {
@@ -231,7 +233,7 @@ def main(
     ]
     train_tasks = l2l.data.TaskDataset(train_dataset,
                                        task_transforms=train_transforms,
-                                       num_tasks=2000)
+                                       num_tasks=2000) # or add replacement=True
 
     print("before valid")
 
@@ -243,7 +245,7 @@ def main(
     ]
     valid_tasks = l2l.data.TaskDataset(valid_dataset,
                                        task_transforms=valid_transforms,
-                                       num_tasks=60)
+                                       num_tasks=60) # or add replacement=True
 
     print("before test")
 
@@ -255,20 +257,25 @@ def main(
     ]
     test_tasks = l2l.data.TaskDataset(test_dataset,
                                       task_transforms=test_transforms,
-                                      num_tasks=60)
+                                      num_tasks=60) # or add replacement=True
 
-    print(len(test_tasks)) # 600 tasks
+    print(len(test_tasks)) # 60 tasks
     print(len(test_tasks[0])) # each task has 2 tensors, input X and output Y
-    print((test_tasks[0][0])) # List of input X
+    # print((test_tasks[0][0])) # List of input X
     print(len(test_tasks[0][0])) # List of input X, 50
     print((test_tasks[0][0][0].size())) # Size of input X, [1, 28, 28]
-    print((test_tasks[0][1])) # List of output Y
+    # print((test_tasks[0][1])) # List of output Y
     print(len(test_tasks[0][1])) # List of output Y, 50
 
-    # Create model
-    features = ConvBase(hidden=50, channels=3, max_pool=True)
-    features = torch.nn.Sequential(features, Lambda(lambda x: x.view(-1, 256)))
+    # Create model 
+    # body
+    # features = ConvBase(hidden=50, channels=1, max_pool=True)
+    resnet = ResFeatureExtractor(backbone='resnet18', fc_hidden1=512, fc_hidden2=512, drop_p=0.3, cnn_embed_dim=512).to(device)
+    gru = GRU(input_size=512).to(device)
+    features = torch.nn.Sequential(resnet, gru, Lambda(lambda x: x.view(-1, 256)))
     features.to(device)
+
+    # head
     head = torch.nn.Linear(256, ways)
     head = l2l.algorithms.MAML(head, lr=fast_lr)
     head.to(device)
@@ -278,6 +285,8 @@ def main(
     optimizer = torch.optim.Adam(all_parameters, lr=meta_lr)
     loss = nn.CrossEntropyLoss(reduction='mean')
 
+    # Training loop
+    print('Training')
     for iteration in range(iters):
         optimizer.zero_grad()
         meta_train_error = 0.0
@@ -290,6 +299,19 @@ def main(
             # Compute meta-training loss
             learner = head.clone()
             batch = train_tasks.sample()
+            # TODO: process images batch into strokes batch
+            print(len(batch)) # each batch has 2 tensors, input X and output Y
+            print(len(batch[0])) # List of input X, 50
+            print(batch[0][0].size()) # Size of input X, [1, 28, 28]
+            print(len(batch[1])) # List of input X, 50
+            print(batch[1][0].size()) # Size of output Y, []
+            print(batch[1][0]) # One of {0,1,2,3,4}
+
+            # process batch[0] only, is list of 50 tensors of size [1, 28, 28]
+            print(batch[0][0])
+
+            raise ValueError()
+
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,
@@ -305,6 +327,8 @@ def main(
             # Compute meta-validation loss
             learner = head.clone()
             batch = valid_tasks.sample()
+            # TODO: process images into strokes
+            
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,
@@ -319,6 +343,8 @@ def main(
             # Compute meta-testing loss
             learner = head.clone()
             batch = test_tasks.sample()
+            # TODO: process images into strokes
+            
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,

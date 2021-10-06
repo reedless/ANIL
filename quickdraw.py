@@ -13,7 +13,7 @@ from learn2learn.data.utils import download_file
 from torchvision.datasets.folder import default_loader
 
 DATA_DIR = 'quickdraw'
-GCLOUD_BUCKET = 'gs://quickdraw_dataset/full/numpy_bitmap/'
+GCLOUD_BUCKET = 'gs://quickdraw_dataset/sketchrnn/'
 
 SPLITS = {
     'train': [
@@ -440,7 +440,7 @@ class Quickdraw(Dataset):
             return False
         all_classes = sum(SPLITS.values(), [])
         for cls_name in all_classes:
-            cls_path = os.path.join(data_path, cls_name + '.npy')
+            cls_path = os.path.join(data_path, cls_name + '.npz')
             if not os.path.exists(cls_path):
                 return False
         return True
@@ -451,9 +451,9 @@ class Quickdraw(Dataset):
         data_path = os.path.join(self.root, DATA_DIR)
         if not os.path.exists(data_path):
             os.mkdir(data_path)
-        print('Downloading Quickdraw dataset (50Gb)')
+        print('Downloading Quickdraw dataset (10Gb)')
         all_classes = sum(SPLITS.values(), [])
-        gcloud_url = GCLOUD_BUCKET + '*.npy'
+        gcloud_url = GCLOUD_BUCKET + '*.npz'
         cmd = ['gsutil', '-m', 'cp', gcloud_url, data_path]
         subprocess.call(cmd)
 
@@ -478,7 +478,7 @@ class Quickdraw(Dataset):
             offsets = []
             index_counter = 0
             for cls_idx, cls_name in enumerate(splits):
-                cls_path = os.path.join(data_path, cls_name + '.npy')
+                cls_path = os.path.join(data_path, cls_name + '.npz')
                 cls_data = np.load(cls_path, mmap_mode='r')
                 num_samples = cls_data.shape[0]
                 labels_to_indices[cls_idx] = list(range(index_counter, index_counter + num_samples))
@@ -518,7 +518,7 @@ class Quickdraw(Dataset):
             splits = SPLITS[mode]
         self.data = []
         for cls_name in splits:
-            cls_path = os.path.join(data_path, cls_name + '.npy')
+            cls_path = os.path.join(data_path, cls_name + '.npz')
             self.data.append(np.load(cls_path, mmap_mode='r'))
 
     def __getitem__(self, i):
