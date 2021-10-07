@@ -214,16 +214,41 @@ def main(
                                 mode='custom-test',
                                 labels_list=SPLITS['test'])
 
-    print(len(train_dataset))
-    print(len(valid_dataset))
-    print(len(test_dataset))
-    print("before dataset")
+    print(len(train_dataset)) # 2.5k * 70 = 175000
+    print(len(valid_dataset)) # 2.5k * 15 = 37500
+    print(len(test_dataset))  # 2.5k * 15 = 37500
+
+    print(len(train_dataset.data[0])) # a class w 2.5k samples
+
+    # get max number of strokes, need to pad all stroke_seqs to be the same
+    max_strokes = 0
+    all_classes = np.concatenate((train_dataset.data, valid_dataset.data, test_dataset.data))
+    for class_set in all_classes:
+        for stroke_seq in class_set:
+            ml = stroke_seq.shape[0]
+            if ml > max_strokes:
+                max_strokes = ml
+
+    print(max_strokes) # 227
+
+    print(train_dataset[0][0])
+    
+    curr = train_dataset[0][0].size()[1]
+    diff = max_strokes - curr
+    print(diff)
+    padding = torch.zeros([1, diff, 3], dtype=torch.int16)
+    temp = torch.cat((train_dataset[0][0], padding), 1)
+
+    print(temp.shape)
+
+    # for stroke_seq, label in test_dataset:
+    #     print(stroke_seq.shape)
+
+    raise ValueError()
 
     train_dataset = l2l.data.MetaDataset(train_dataset)
     valid_dataset = l2l.data.MetaDataset(valid_dataset)
     test_dataset = l2l.data.MetaDataset(test_dataset)
-
-    print("before train")
 
     train_transforms = [
         FusedNWaysKShots(train_dataset, n=ways, k=2*shots),
@@ -235,8 +260,6 @@ def main(
                                        task_transforms=train_transforms,
                                        num_tasks=2000) # or add replacement=True
 
-    print("before valid")
-
     valid_transforms = [
         FusedNWaysKShots(valid_dataset, n=ways, k=2*shots),
         LoadData(valid_dataset),
@@ -247,8 +270,6 @@ def main(
                                        task_transforms=valid_transforms,
                                        num_tasks=60) # or add replacement=True
 
-    print("before test")
-
     test_transforms = [
         FusedNWaysKShots(test_dataset, n=ways, k=2*shots),
         LoadData(test_dataset),
@@ -258,14 +279,6 @@ def main(
     test_tasks = l2l.data.TaskDataset(test_dataset,
                                       task_transforms=test_transforms,
                                       num_tasks=60) # or add replacement=True
-
-    print(len(test_tasks)) # 60 tasks
-    print(len(test_tasks[0])) # each task has 2 tensors, input X and output Y
-    # print((test_tasks[0][0])) # List of input X
-    print(len(test_tasks[0][0])) # List of input X, 50
-    print((test_tasks[0][0][0].size())) # Size of input X, [1, 28, 28]
-    # print((test_tasks[0][1])) # List of output Y
-    print(len(test_tasks[0][1])) # List of output Y, 50
 
     # Create model 
     # body
@@ -299,18 +312,6 @@ def main(
             # Compute meta-training loss
             learner = head.clone()
             batch = train_tasks.sample()
-            # TODO: process images batch into strokes batch
-            print(len(batch)) # each batch has 2 tensors, input X and output Y
-            print(len(batch[0])) # List of input X, 50
-            print(batch[0][0].size()) # Size of input X, [1, 28, 28]
-            print(len(batch[1])) # List of input X, 50
-            print(batch[1][0].size()) # Size of output Y, []
-            print(batch[1][0]) # One of {0,1,2,3,4}
-
-            # process batch[0] only, is list of 50 tensors of size [1, 28, 28]
-            print(batch[0][0])
-
-            raise ValueError()
 
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
