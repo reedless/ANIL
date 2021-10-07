@@ -396,7 +396,7 @@ class Quickdraw(Dataset):
 
     * **root** (str) - Path to download the data.
     * **mode** (str, *optional*, default='train') - Which split to use.
-        Must be 'train', 'validation', or 'test'.
+        Must be 'train', 'validation', 'test', or 'custom'.
     * **transform** (Transform, *optional*, default=None) - Input pre-processing.
     * **target_transform** (Transform, *optional*, default=None) - Target pre-processing.
     * **download** (bool, *optional*, default=False) - Whether to download the dataset.
@@ -479,8 +479,9 @@ class Quickdraw(Dataset):
             index_counter = 0
             for cls_idx, cls_name in enumerate(splits):
                 cls_path = os.path.join(data_path, cls_name + '.npz')
-                cls_data = np.load(cls_path, mmap_mode='r')
-                num_samples = cls_data.shape[0]
+                cls_data = np.load(cls_path, encoding='latin1', allow_pickle=True)
+                # use test from npz dataset for all? train/valid/test = 70k/2.5k/2.5k
+                num_samples = len(cls_data['test'])
                 labels_to_indices[cls_idx] = list(range(index_counter, index_counter + num_samples))
                 for i in range(num_samples):
                     indices_to_labels[index_counter + i] = cls_idx
@@ -519,13 +520,14 @@ class Quickdraw(Dataset):
         self.data = []
         for cls_name in splits:
             cls_path = os.path.join(data_path, cls_name + '.npz')
-            self.data.append(np.load(cls_path, mmap_mode='r'))
+            # self.data.append(np.load(cls_path, mmap_mode='r'))
+            self.data.append(np.load(cls_path, encoding='latin1', allow_pickle=True)['test'])
 
     def __getitem__(self, i):
         label = self.indices_to_labels[i]
         cls_data = self.data[label]
         offset = self.offsets[label]
-        image = cls_data[i - offset].reshape(28, 28)
+        image = cls_data[i - offset]
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
