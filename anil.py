@@ -177,20 +177,31 @@ def fast_adapt(batch,
     valid_accuracy = accuracy(predictions, evaluation_labels)
     return valid_error, valid_accuracy
 
-def pad_dataset(dataset, max_strokes):
-    padded_dataset = []
 
-    for i in range(len(dataset)):
-        stroke_seq, label = dataset[i]
-        # how much to pad
-        diff = max_strokes - stroke_seq.size()[1]
-        # create and add padding to back
-        padding = torch.zeros([1, diff, 3], dtype=torch.int16)
-        padded_stroke_seq = torch.cat((stroke_seq, padding), 1)
-        # add to accumulator
-        padded_dataset.append((padded_stroke_seq, label))
+def convert_samples_to_image(dataset):
+    output_dataset = []
+    i = 0
+    for sample, label in dataset:
+        print(i)
+        i += 1
+        output_dataset.append((create_image(sample), label))
+    return np.asarray(output_dataset)
 
-    return padded_dataset
+
+# def pad_dataset(dataset, max_strokes):
+#     padded_dataset = []
+
+#     for i in range(len(dataset)):
+#         stroke_seq, label = dataset[i]
+#         # how much to pad
+#         diff = max_strokes - stroke_seq.size()[1]
+#         # create and add padding to back
+#         padding = torch.zeros([1, diff, 3], dtype=torch.int16)
+#         padded_stroke_seq = torch.cat((stroke_seq, padding), 1)
+#         # add to accumulator
+#         padded_dataset.append((padded_stroke_seq, label))
+
+#     return padded_dataset
 
 def main(
         ways=5,
@@ -216,16 +227,16 @@ def main(
 
     # Create Datasets (too large to use entire quickdraw)
     train_dataset = Quickdraw(root='~/data',
-                                transform=tv.transforms.ToTensor(),
+                                # transform=tv.transforms.ToTensor(),
                                 mode='custom-train',
                                 labels_list=SPLITS['train'],
                                 download=True)
     valid_dataset = Quickdraw(root='~/data',
-                                transform=tv.transforms.ToTensor(),
+                                # transform=tv.transforms.ToTensor(),
                                 mode='custom-validation',
                                 labels_list=SPLITS['validation'])
     test_dataset = Quickdraw(root='~/data',
-                                transform=tv.transforms.ToTensor(),
+                                # transform=tv.transforms.ToTensor(),
                                 mode='custom-test',
                                 labels_list=SPLITS['test'])
 
@@ -235,8 +246,17 @@ def main(
     print(len(train_dataset.data[0])) # a class w 2.5k samples
     print(create_image(train_dataset.data[0][0]).shape) # a sample
 
-    # convert samples to (dims[0], dims[1], strokes)
-    # resize to (resnet_size)
+    # convert samples to (resnet_size[0], resnet_size[1], strokes)
+    train_dataset = convert_samples_to_image(train_dataset)
+    print(train_dataset.shape)
+
+    valid_dataset = convert_samples_to_image(valid_dataset)
+    print(valid_dataset.shape)
+
+    test_dataset  = convert_samples_to_image(test_dataset)
+    print(test_dataset.shape)
+
+
     # count to highest strokes
     # pad to make up
     # stack to make 3 channels
