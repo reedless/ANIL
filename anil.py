@@ -17,6 +17,7 @@ from learn2learn.data.transforms import FusedNWaysKShots, LoadData, RemapLabels,
 from statistics import mean
 from copy import deepcopy
 from quickdraw import Quickdraw
+from utils import ListDataset, create_image
 from models.cnn import ConvBase
 from models.gru import GRU
 from models.resnet import ResFeatureExtractor
@@ -176,6 +177,20 @@ def fast_adapt(batch,
     valid_accuracy = accuracy(predictions, evaluation_labels)
     return valid_error, valid_accuracy
 
+def pad_dataset(dataset, max_strokes):
+    padded_dataset = []
+
+    for i in range(len(dataset)):
+        stroke_seq, label = dataset[i]
+        # how much to pad
+        diff = max_strokes - stroke_seq.size()[1]
+        # create and add padding to back
+        padding = torch.zeros([1, diff, 3], dtype=torch.int16)
+        padded_stroke_seq = torch.cat((stroke_seq, padding), 1)
+        # add to accumulator
+        padded_dataset.append((padded_stroke_seq, label))
+
+    return padded_dataset
 
 def main(
         ways=5,
@@ -217,38 +232,43 @@ def main(
     print(len(train_dataset)) # 2.5k * 70 = 175000
     print(len(valid_dataset)) # 2.5k * 15 = 37500
     print(len(test_dataset))  # 2.5k * 15 = 37500
-
     print(len(train_dataset.data[0])) # a class w 2.5k samples
+    print(create_image(train_dataset.data[0][0]).shape) # a sample
 
-    # get max number of strokes, need to pad all stroke_seqs to be the same
-    max_strokes = 0
-    all_classes = np.concatenate((train_dataset.data, valid_dataset.data, test_dataset.data))
-    for class_set in all_classes:
-        for stroke_seq in class_set:
-            ml = stroke_seq.shape[0]
-            if ml > max_strokes:
-                max_strokes = ml
+    # convert samples to (dims[0], dims[1], strokes)
+    # resize to (resnet_size)
+    # count to highest strokes
+    # pad to make up
+    # stack to make 3 channels
 
-    print(max_strokes) # 227
+    # TODO: change dimensions to fit [batch_size, channel (always 3), height (224), width (224), num_strokes]
 
-    print(train_dataset[0][0])
+    # # get max number of strokes, need to pad all stroke_seqs to be the same
+    # max_strokes = 0
+    # all_classes = np.concatenate((train_dataset.data, valid_dataset.data, test_dataset.data))
+    # for class_set in all_classes:
+    #     for stroke_seq in class_set:
+    #         ml = stroke_seq.shape[0]
+    #         if ml > max_strokes:
+    #             max_strokes = ml
+
+    # print(max_strokes) # 227
+
+    # padded_train_dataset = pad_dataset(train_dataset, max_strokes)
+    # padded_valid_dataset = pad_dataset(valid_dataset, max_strokes)
+    # padded_test_dataset  = pad_dataset(test_dataset, max_strokes)
+
+    # print(len(padded_train_dataset))
+    # print(len(padded_valid_dataset))
+    # print(len(padded_test_dataset))
+    # print(padded_train_dataset[0][0].size())
+    # print(padded_valid_dataset[0][0].size())
+    # print(padded_test_dataset[0][0].size())
+
     
-    curr = train_dataset[0][0].size()[1]
-    diff = max_strokes - curr
-    print(diff)
-    padding = torch.zeros([1, diff, 3], dtype=torch.int16)
-    temp = torch.cat((train_dataset[0][0], padding), 1)
-
-    print(temp.shape)
-
-    # for stroke_seq, label in test_dataset:
-    #     print(stroke_seq.shape)
-
-    raise ValueError()
-
-    train_dataset = l2l.data.MetaDataset(train_dataset)
-    valid_dataset = l2l.data.MetaDataset(valid_dataset)
-    test_dataset = l2l.data.MetaDataset(test_dataset)
+    train_dataset = l2l.data.MetaDataset(ListDataset(padded_train_dataset))
+    valid_dataset = l2l.data.MetaDataset(ListDataset(padded_valid_dataset))
+    test_dataset  = l2l.data.MetaDataset(ListDataset(padded_test_dataset))
 
     train_transforms = [
         FusedNWaysKShots(train_dataset, n=ways, k=2*shots),
@@ -312,7 +332,6 @@ def main(
             # Compute meta-training loss
             learner = head.clone()
             batch = train_tasks.sample()
-
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,
@@ -328,8 +347,6 @@ def main(
             # Compute meta-validation loss
             learner = head.clone()
             batch = valid_tasks.sample()
-            # TODO: process images into strokes
-            
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,
@@ -344,8 +361,6 @@ def main(
             # Compute meta-testing loss
             learner = head.clone()
             batch = test_tasks.sample()
-            # TODO: process images into strokes
-            
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                features,
