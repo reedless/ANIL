@@ -16,121 +16,10 @@ from learn2learn.data.transforms import FusedNWaysKShots, LoadData, RemapLabels,
 
 from statistics import mean
 from copy import deepcopy
-from quickdraw import Quickdraw
-from utils import ListDataset, create_image
+from utils import ListDataset
 from models.cnn import ConvBase
 from models.gru import GRU
 from models.resnet import ResFeatureExtractor
-
-# 70/15/15 split
-SPLITS = {
-    'train': [
-        'hedgehog',
-        'swan',
-        'police car',
-        'castle',
-        'horse',
-        'stairs',
-        'van',
-        'screwdriver',
-        'marker',
-        'duck',
-        'oven',
-        'dolphin',
-        'stove',
-        'ambulance',
-        'basket',
-        'popsicle',
-        'whale',
-        'crown',
-        'teapot',
-        'school bus',
-        'potato',
-        'eyeglasses',
-        'diamond',
-        'bowtie',
-        'cat',
-        'hurricane',
-        'square',
-        'river',
-        'door',
-        'triangle',
-        'pear',
-        'cup',
-        'elephant',
-        'compass',
-        'tractor',
-        'ladder',
-        'pineapple',
-        'bathtub',
-        'tiger',
-        'drums',
-        'cake',
-        'ceiling fan',
-        'zigzag',
-        'light bulb',
-        'sheep',
-        'flip flops',
-        'sailboat',
-        'sink',
-        'necklace',
-        'toothbrush',
-        'snorkel',
-        'trombone',
-        'watermelon',
-        'pliers',
-        'cruise ship',
-        'string bean',
-        'raccoon',
-        'rainbow',
-        'fork',
-        'fan',
-        'fence',
-        'microphone',
-        'motorbike',
-        'pool',
-        'line',
-        'bandage',
-        'bracelet',
-        'syringe',
-        'lollipop',
-        'grass',
-    ],
-    'validation': [
-        'ant',
-        'anvil',
-        'backpack',
-        'baseball',
-        'basketball',
-        'binoculars',
-        'bread',
-        'calendar',
-        'camel',
-        'candle',
-        'carrot',
-        'church',
-        'clarinet',
-        'coffee cup',
-        'eye',
-    ],
-    'test': [        
-        'The Eiffel Tower',
-        'alarm clock',
-        'bulldozer',
-        'bus',
-        'camera',
-        'flower',
-        'helicopter',
-        'hexagon',
-        'laptop',
-        'lighthouse',
-        'octagon',
-        'radio',
-        'snowman',
-        'tennis racquet',
-        'windmill',
-    ]
-}
 
 class Lambda(nn.Module):
 
@@ -178,31 +67,6 @@ def fast_adapt(batch,
     return valid_error, valid_accuracy
 
 
-def convert_samples_to_image(dataset):
-    output_dataset = []
-    i = 0
-    for sample, label in dataset:
-        print(i)
-        i += 1
-        output_dataset.append((create_image(sample), label))
-    return np.asarray(output_dataset)
-
-
-# def pad_dataset(dataset, max_strokes):
-#     padded_dataset = []
-
-#     for i in range(len(dataset)):
-#         stroke_seq, label = dataset[i]
-#         # how much to pad
-#         diff = max_strokes - stroke_seq.size()[1]
-#         # create and add padding to back
-#         padding = torch.zeros([1, diff, 3], dtype=torch.int16)
-#         padded_stroke_seq = torch.cat((stroke_seq, padding), 1)
-#         # add to accumulator
-#         padded_dataset.append((padded_stroke_seq, label))
-
-#     return padded_dataset
-
 def main(
         ways=5,
         shots=5,
@@ -225,66 +89,7 @@ def main(
         torch.cuda.manual_seed(seed)
         device = torch.device('cuda')
 
-    # Create Datasets (too large to use entire quickdraw)
-    train_dataset = Quickdraw(root='~/data',
-                                # transform=tv.transforms.ToTensor(),
-                                mode='custom-train',
-                                labels_list=SPLITS['train'],
-                                download=True)
-    valid_dataset = Quickdraw(root='~/data',
-                                # transform=tv.transforms.ToTensor(),
-                                mode='custom-validation',
-                                labels_list=SPLITS['validation'])
-    test_dataset = Quickdraw(root='~/data',
-                                # transform=tv.transforms.ToTensor(),
-                                mode='custom-test',
-                                labels_list=SPLITS['test'])
-
-    print(len(train_dataset)) # 2.5k * 70 = 175000
-    print(len(valid_dataset)) # 2.5k * 15 = 37500
-    print(len(test_dataset))  # 2.5k * 15 = 37500
-    print(len(train_dataset.data[0])) # a class w 2.5k samples
-    print(create_image(train_dataset.data[0][0]).shape) # a sample
-
-    # convert samples to (resnet_size[0], resnet_size[1], strokes)
-    train_dataset = convert_samples_to_image(train_dataset)
-    print(train_dataset.shape)
-
-    valid_dataset = convert_samples_to_image(valid_dataset)
-    print(valid_dataset.shape)
-
-    test_dataset  = convert_samples_to_image(test_dataset)
-    print(test_dataset.shape)
-
-
-    # count to highest strokes
-    # pad to make up
-    # stack to make 3 channels
-
-    # TODO: change dimensions to fit [batch_size, channel (always 3), height (224), width (224), num_strokes]
-
-    # # get max number of strokes, need to pad all stroke_seqs to be the same
-    # max_strokes = 0
-    # all_classes = np.concatenate((train_dataset.data, valid_dataset.data, test_dataset.data))
-    # for class_set in all_classes:
-    #     for stroke_seq in class_set:
-    #         ml = stroke_seq.shape[0]
-    #         if ml > max_strokes:
-    #             max_strokes = ml
-
-    # print(max_strokes) # 227
-
-    # padded_train_dataset = pad_dataset(train_dataset, max_strokes)
-    # padded_valid_dataset = pad_dataset(valid_dataset, max_strokes)
-    # padded_test_dataset  = pad_dataset(test_dataset, max_strokes)
-
-    # print(len(padded_train_dataset))
-    # print(len(padded_valid_dataset))
-    # print(len(padded_test_dataset))
-    # print(padded_train_dataset[0][0].size())
-    # print(padded_valid_dataset[0][0].size())
-    # print(padded_test_dataset[0][0].size())
-
+    # TODO: load datasets
     
     train_dataset = l2l.data.MetaDataset(ListDataset(padded_train_dataset))
     valid_dataset = l2l.data.MetaDataset(ListDataset(padded_valid_dataset))
