@@ -119,7 +119,8 @@ def etl_samples_and_save(dataset, dirname, skip=False):
     prev_label = 0
     counter = 0
     print(prev_label)
-    for sample, label in dataset:
+    for i in range(len(dataset)):
+        sample, label = dataset[i]
         if prev_label != label:
             print(label)
             prev_label = label
@@ -171,22 +172,9 @@ def main():
         if not os.path.exists(directory):
             os.mkdir(directory)
 
-    """
-    Ignore KeyErrors, will occur when finish processing all samples
-    Example:
-    File "process_dataset.py", line 222, in <module>
-        main()
-    File "process_dataset.py", line 169, in main
-        etl_samples_and_save(valid_dataset, 'valid')
-    File "process_dataset.py", line 121, in etl_samples_and_save
-        for sample, label in dataset:
-    File "/home/reedless/anil/quickdraw.py", line 527, in __getitem__
-        label = self.indices_to_labels[i]
-    KeyError: 37500
-    """
-    etl_samples_and_save(train_dataset, 'train')
-    etl_samples_and_save(valid_dataset, 'valid')
-    etl_samples_and_save(test_dataset, 'test')
+    etl_samples_and_save(train_dataset, 'train', skip=True)
+    etl_samples_and_save(valid_dataset, 'valid', skip=True)
+    etl_samples_and_save(test_dataset, 'test', skip=True)
 
     # # get max number of strokes, need to pad all stroke_seqs to be the same
     # max_strokes = 0
