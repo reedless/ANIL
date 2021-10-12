@@ -90,6 +90,13 @@ def main(
         device = torch.device('cuda')
 
     # TODO: load datasets
+
+    # count to highest strokes
+    # pad to make up
+    # stack to make 3 channels
+
+    # TODO: change dimensions to fit [batch_size, channel (always 3), height (224), width (224), num_strokes]
+
     
     train_dataset = l2l.data.MetaDataset(ListDataset(padded_train_dataset))
     valid_dataset = l2l.data.MetaDataset(ListDataset(padded_valid_dataset))

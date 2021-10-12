@@ -115,22 +115,28 @@ SPLITS = {
 
 output_dataset_dir = "./dataset"
 
-def etl_samples_and_save(dataset, dirname):
+def etl_samples_and_save(dataset, dirname, skip=False):
     prev_label = 0
     counter = 0
+    print(prev_label)
     for sample, label in dataset:
         if prev_label != label:
             print(label)
             prev_label = label
             counter = 0
+
+        # check if already saved and if skip is True
+        outfile_name = os.path.join(output_dataset_dir, dirname, f'{label}_{counter}.npz')
+        counter += 1
+        if os.path.exists(outfile_name) and skip:
+            continue
+
         image = create_image(sample,
                             accumulate_strokes=True, # default
                             output_dims=(224, 224))  # default
-        outfile_name = os.path.join(output_dataset_dir, dirname, f'{label}_{counter}.npz')
         outfile = open(outfile_name, 'wb')
         np.savez_compressed(outfile, image=image, label=label)
         outfile.close()
-        counter += 1
 
     return True
 
@@ -165,26 +171,22 @@ def main():
         if not os.path.exists(directory):
             os.mkdir(directory)
 
-    # etl_samples_and_save(train_dataset, 'train')
+    """
+    Ignore KeyErrors, will occur when finish processing all samples
+    Example:
+    File "process_dataset.py", line 222, in <module>
+        main()
+    File "process_dataset.py", line 169, in main
+        etl_samples_and_save(valid_dataset, 'valid')
+    File "process_dataset.py", line 121, in etl_samples_and_save
+        for sample, label in dataset:
+    File "/home/reedless/anil/quickdraw.py", line 527, in __getitem__
+        label = self.indices_to_labels[i]
+    KeyError: 37500
+    """
+    etl_samples_and_save(train_dataset, 'train')
     etl_samples_and_save(valid_dataset, 'valid')
     etl_samples_and_save(test_dataset, 'test')
-
-    # # convert samples to (resnet_size[0], resnet_size[1], strokes)
-    # train_dataset = convert_samples_to_image(train_dataset)
-    # print(train_dataset.shape)
-
-    # valid_dataset = convert_samples_to_image(valid_dataset)
-    # print(valid_dataset.shape)
-
-    # test_dataset  = convert_samples_to_image(test_dataset)
-    # print(test_dataset.shape)
-
-
-    # count to highest strokes
-    # pad to make up
-    # stack to make 3 channels
-
-    # TODO: change dimensions to fit [batch_size, channel (always 3), height (224), width (224), num_strokes]
 
     # # get max number of strokes, need to pad all stroke_seqs to be the same
     # max_strokes = 0
